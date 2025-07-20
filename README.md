@@ -78,7 +78,139 @@ public abstract class BaseEntity {
 ```
 <li>Setiap "rumah" (class) harus punya pintu (method isValid)</li>
 
-![tampilan aplikasi](C:\Users\Irgi\Downloads\injemkeun.png)
+## Penjelasan Sederhana Setiap Kelas dan Fungsinya
+
+### Kelas Utama
+<li><code>App.java</code></li>
+<p><b>Fungsi:</b> Kelas utama untuk menjalankan aplikasi JavaFx</p>
+
+```java
+public class App extends Application {
+    public static void main(String[] args) {
+        launch(args); // Menjalankan aplikasi
+    }
+}
+```
+<li><b>Tugas:</b> Start aplikasi dan tampilkan halaman login</li>
+
+### Kelas Model (Data/Entity)
+1. <code>BaseEntity.java</code>
+<p><b>Fungsi:</b> Kelas induk untuk semua data</p>
+<li><b>Tugas:</b> Menyediakan ID dan Aturan dasar untuk semua data</li>
+
+```java
+public abstract class BaseEntity {
+    protected int id;
+    public abstract boolean isValid(); // Harus diisi anak-anaknya
+}
+```
+
+2. <code>user.java</code>
+<p><b>Fungsi:</b> Data pengguna dasar (username, password)</p>
+<p><b>Tugas:</b> Menyimpan informasi login pengguna</p>
+
+```java
+public class User extends BaseEntity {
+    private String username, password, role;
+}
+```
+
+
+3. <code>Admin.java</code>
+<p><b>Fungsi:</b> Pengguna dengan hak akses penuh</p>
+<p><b>Tugas:</b> Bisa kelola barang dan approve permintaan</p>
+
+```java
+public class Admin extends User {
+    public boolean canManageBarang() { return true; }
+}
+```
+
+4. <code>Mahasiswa.java</code></li>
+<p><b>Fungsi:</b> pengguna yang bisa pinjam barang</p>
+<p><b>Tugas:</b> Bisa ajukan pinjam barang, lihat riwayat</p>
+
+```java
+public class Mahasiswa extends User {
+    private String nim, jurusan;
+}
+```
+
+5. <code>Barang.java</code></li>
+<p><b>Fungsi:</b> Data barang yang dipinjam</p>
+<p><b>Tugas:</b> Menyimpan info barang (nama, kode, kondisi)</p>
+
+```java
+public class Barang extends BaseEntity {
+    private String nama, kode, kondisi;
+}
+```
+
+6. <code>Permintaan.java</code></li>
+<p><b>Fungsi:</b> Data permintaan pinjam barang</p>
+<p><b>Tugas:</b> Mencatat siapa pinjam apa dan statusnya</p>
+
+```java
+public class PermintaanModel extends BaseEntity {
+    private String namaPengaju, namaBarang, status;
+}
+```
+
+## Database
+
+```Sql
+CREATE DATABASE IF NOT EXISTS peminjaman_db;
+USE peminjaman_db;
+
+-- Tabel USERS
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nama VARCHAR(100),
+    username VARCHAR(50),
+    password VARCHAR(100),
+    role ENUM('admin', 'mahasiswa')
+);
+
+-- Tabel BARANG
+CREATE TABLE barang (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nama VARCHAR(100),
+    kode VARCHAR(50),
+    kondisi VARCHAR(50)
+);
+
+-- Tabel PENGAJUAN
+CREATE TABLE pengajuan (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    barang_id INT,
+    tanggal_pengajuan DATETIME,
+    status ENUM('Menunggu', 'Diacc', 'Ditolak'),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (barang_id) REFERENCES barang(id)
+);
+
+-- Tabel PERMINTAAN
+CREATE TABLE permintaan (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    barang_id INT,
+    status ENUM('Menunggu', 'Diacc', 'Ditolak'),
+    tanggal_pengajuan TIMESTAMP,
+    tanggal_acc TIMESTAMP,
+    keterangan TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (barang_id) REFERENCES barang(id)
+);
+```
+<p><b>Penjelasan Singkat:</b></p>
+<li>Semua tabel menggunakan relasi foreign key untuk menghubungkan data antar tabel <code>(user_id dan barang_id)</code></li>
+<li>status pada pengajuan dan permintaan menggunakan ENUM agar hanya menerima tiga nilai: <code>'Menunggu', 'Diacc', atau 'Ditolak'</code></li>
+<li>Tabel permintaan memiliki tambahan kolom tanggal_acc dan keterangan untuk kebutuhan approval dan catatan</li>
+
+
+
+
 ## Demo Proyek
 <ul>
   <li>Github: <a href="">Github</a></li>
