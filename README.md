@@ -213,6 +213,6 @@ CREATE TABLE permintaan (
 
 ## Demo Proyek
 <ul>
-  <li>Github: <a href="">Github</a></li>
-  <li>Youtube: <a href="">Youtube</a></li>
+  <li>Github: <a href="https://github.com/IrgiRanggaSaputra/Final-Proyek-PBO2">Github</a></li>
+  <li>Youtube: <a href="https://youtu.be/eibWyXAlFIo?si=p_O1FGeqPdqAuLrF">Youtube</a></li>
 </ul>
