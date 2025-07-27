@@ -18,6 +18,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.Button;
 
 import java.util.List;
+import com.mycompany.peminjamanbarang.service.PeminjamanService;
+import java.sql.SQLException;
 import com.mycompany.peminjamanbarang.dao.PermintaanDAO;
 import com.mycompany.peminjamanbarang.model.PermintaanModel;
 
@@ -186,9 +188,74 @@ public class DashboardController {
             alert.showAndWait();
             return;
         }
-        PermintaanDAO.updateStatus(p.getId(), status);
-        tableView.getItems().setAll(PermintaanDAO.getPermintaanMenunggu());
-        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Permintaan dari '" + p.getNamaPengaju() + "' untuk barang '" + p.getNamaBarang() + "' di-" + (status.equals("Diacc") ? "ACC" : "Reject") + ".");
-        alert.showAndWait();
+        
+        try {
+            // Update status permintaan
+            PermintaanDAO.updateStatus(p.getId(), status);
+            
+            // Jika di-ACC, buat record peminjaman baru menggunakan OOP pattern
+            if ("Diacc".equals(status)) {
+                PeminjamanService peminjamanService = new PeminjamanService();
+                
+                // Ambil data dari permintaan untuk membuat peminjaman
+                // Untuk saat ini, kita perlu mendapatkan user_id dan barang_id dari permintaan
+                // Ini bisa diperbaiki dengan menambah method di PermintaanDAO untuk mengambil detail lengkap
+                peminjamanService.createFromApprovedRequest(
+                    getUserIdFromPermintaan(p.getId()), // Method helper untuk mendapatkan user_id
+                    getBarangIdFromPermintaan(p.getId()), // Method helper untuk mendapatkan barang_id
+                    p.getNamaPengaju(),
+                    p.getNamaBarang(),
+                    p.getKodeBarang()
+                );
+                
+                System.out.println("✅ OOP Implementation: Peminjaman record created successfully using PeminjamanService!");
+            }
+            
+            // Refresh table
+            tableView.getItems().setAll(PermintaanDAO.getPermintaanMenunggu());
+            
+            // Show success message
+            String action = status.equals("Diacc") ? "ACC" : "Reject";
+            String message = "Permintaan dari '" + p.getNamaPengaju() + "' untuk barang '" + p.getNamaBarang() + "' di-" + action + ".";
+            
+            if ("Diacc".equals(status)) {
+                message += "\nRecord peminjaman telah dibuat secara otomatis.";
+            }
+            
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, message);
+            alert.showAndWait();
+            
+        } catch (SQLException e) {
+            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+            errorAlert.setTitle("Error");
+            errorAlert.setHeaderText("Error Processing Request");
+            errorAlert.setContentText("Terjadi kesalahan saat memproses permintaan: " + e.getMessage());
+            errorAlert.showAndWait();
+        }
+    }
+    
+    // Helper methods untuk mendapatkan user_id dan barang_id dari permintaan
+    private int getUserIdFromPermintaan(int permintaanId) throws SQLException {
+        try (java.sql.Connection conn = com.mycompany.peminjamanbarang.util.DBUtil.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement("SELECT user_id FROM pengajuan WHERE id = ?")) {
+            ps.setInt(1, permintaanId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("user_id");
+            }
+            throw new SQLException("User ID not found for permintaan ID: " + permintaanId);
+        }
+    }
+    
+    private int getBarangIdFromPermintaan(int permintaanId) throws SQLException {
+        try (java.sql.Connection conn = com.mycompany.peminjamanbarang.util.DBUtil.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement("SELECT barang_id FROM pengajuan WHERE id = ?")) {
+            ps.setInt(1, permintaanId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("barang_id");
+            }
+            throw new SQLException("Barang ID not found for permintaan ID: " + permintaanId);
+        }
     }
 }

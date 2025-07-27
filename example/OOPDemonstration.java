@@ -2,6 +2,7 @@ package com.mycompany.peminjamanbarang.example;
 
 import com.mycompany.peminjamanbarang.model.*;
 import com.mycompany.peminjamanbarang.service.BarangService;
+import com.mycompany.peminjamanbarang.service.PeminjamanService;
 import com.mycompany.peminjamanbarang.dao.GenericDAO;
 import com.mycompany.peminjamanbarang.dao.ImprovedBarangDAO;
 import java.util.List;
@@ -26,6 +27,9 @@ public class OOPDemonstration {
         
         // 4. ABSTRACTION
         demonstrateAbstraction();
+        
+        // 5. RETURN FUNCTIONALITY (New Feature)
+        demonstrateReturnFunctionality();
     }
     
     /**
@@ -147,6 +151,64 @@ public class OOPDemonstration {
         System.out.println("- getDisplayInfo() dari BaseEntity");
         System.out.println("- validateBeforeSave() dari BaseService");
         System.out.println("- performBusinessLogicAfterSave() dari BaseService");
+    }
+    
+    /**
+     * Demonstrasi RETURN FUNCTIONALITY (Fitur Baru)
+     * - Peminjaman model dengan inheritance dari BaseEntity
+     * - PeminjamanService dengan inheritance dari BaseService  
+     * - Business logic untuk pengembalian barang
+     * - Integration semua konsep OOP
+     */
+    private static void demonstrateReturnFunctionality() {
+        System.out.println("\n5. RETURN FUNCTIONALITY (NEW FEATURE):");
+        
+        try {
+            // Membuat instance peminjaman (Inheritance dari BaseEntity)
+            Peminjaman peminjaman = new Peminjaman(
+                1, // id
+                101, // userId
+                201, // barangId
+                "John Doe", // namaPeminjam
+                "Laptop Dell", // namaBarang
+                "LPT001", // kodeBarang
+                java.time.LocalDateTime.now().minusDays(3) // tanggalPinjam (3 hari lalu)
+            );
+            
+            System.out.println("=== DEMONSTRASI PEMINJAMAN ===");
+            System.out.println("Polymorphism - getDisplayInfo(): " + peminjaman.getDisplayInfo());
+            System.out.println("Encapsulation - getDurasiPeminjamanHari(): " + peminjaman.getDurasiPeminjamanHari() + " hari");
+            System.out.println("Status saat ini: " + peminjaman.getStatus());
+            
+            // Menggunakan PeminjamanService (Inheritance dari BaseService)
+            PeminjamanService peminjamanService = new PeminjamanService();
+            System.out.println("\n=== BUSINESS LOGIC PENGEMBALIAN ===");
+            
+            // Business logic pengembalian
+            peminjaman.kembalikan("Barang dikembalikan dalam kondisi baik");
+            System.out.println("Status setelah dikembalikan: " + peminjaman.getStatus());
+            System.out.println("Tanggal kembali: " + peminjaman.getTanggalKembaliFormatted());
+            System.out.println("Catatan: " + peminjaman.getCatatan());
+            
+            // Validation (Inheritance dari BaseEntity)
+            System.out.println("\n=== VALIDATION (ABSTRACTION) ===");
+            System.out.println("isValid(): " + peminjaman.isValid());
+            System.out.println("hasValidId(): " + peminjaman.hasValidId());
+            
+            // Method khusus untuk peminjaman
+            System.out.println("\n=== METHOD KHUSUS PEMINJAMAN ===");
+            System.out.println("isDikembalikan(): " + peminjaman.isDikembalikan());
+            System.out.println("isDipinjam(): " + peminjaman.isDipinjam());
+            
+            System.out.println("\n✅ Return functionality berhasil diintegrasikan dengan struktur OOP existing!");
+            System.out.println("   - Tidak mengubah struktur yang sudah ada");
+            System.out.println("   - Menggunakan inheritance dari BaseEntity");
+            System.out.println("   - Menggunakan service layer pattern");
+            System.out.println("   - Polymorphism dalam DAO layer");
+            
+        } catch (Exception e) {
+            System.out.println("Error dalam demonstrasi return functionality: " + e.getMessage());
+        }
     }
     
     // Method main untuk testing

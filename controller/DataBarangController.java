@@ -59,8 +59,37 @@ public class DataBarangController {
                 });
                 delete.setOnAction(_ -> {
                     Barang b = getTableView().getItems().get(getIndex());
-                    BarangDAO.deleteBarang(b.getId());
-                    refreshTable(getTableView());
+                    
+                    // Konfirmasi delete
+                    Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirmAlert.setTitle("Konfirmasi Hapus");
+                    confirmAlert.setHeaderText("Hapus Barang");
+                    confirmAlert.setContentText("Apakah Anda yakin ingin menghapus barang '" + b.getNama() + "'?\nTindakan ini tidak dapat dibatalkan.");
+                    
+                    confirmAlert.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.OK) {
+                            try {
+                                BarangDAO.deleteBarang(b.getId());
+                                refreshTable(getTableView());
+                                
+                                // Success notification
+                                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                                successAlert.setTitle("Berhasil");
+                                successAlert.setHeaderText("Barang Terhapus");
+                                successAlert.setContentText("Barang '" + b.getNama() + "' berhasil dihapus.");
+                                successAlert.showAndWait();
+                                
+                            } catch (Exception e) {
+                                // Error handling
+                                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                                errorAlert.setTitle("Error");
+                                errorAlert.setHeaderText("Gagal Menghapus Barang");
+                                errorAlert.setContentText("Terjadi kesalahan: " + e.getMessage() + 
+                                                         "\n\nKemungkinan barang sedang dipinjam atau digunakan.");
+                                errorAlert.showAndWait();
+                            }
+                        }
+                    });
                 });
             }
             @Override

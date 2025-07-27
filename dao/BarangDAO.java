@@ -57,11 +57,37 @@ public class BarangDAO {
 
     public static void deleteBarang(int id) {
         try (Connection conn = DriverManager.getConnection(URL, USER, PASS)) {
+            // Check if barang exists first
+            PreparedStatement checkStmt = conn.prepareStatement("SELECT COUNT(*) FROM barang WHERE id=?");
+            checkStmt.setInt(1, id);
+            var rs = checkStmt.executeQuery();
+            
+            if (!rs.next() || rs.getInt(1) == 0) {
+                throw new RuntimeException("Barang dengan ID " + id + " tidak ditemukan");
+            }
+            
+            // Check if barang is being used in permintaan/pengajuan
+            PreparedStatement checkUsageStmt = conn.prepareStatement(
+                "SELECT COUNT(*) FROM pengajuan WHERE barang_id=? AND status='Menunggu'"
+            );
+            checkUsageStmt.setInt(1, id);
+            var usageRs = checkUsageStmt.executeQuery();
+            
+            if (usageRs.next() && usageRs.getInt(1) > 0) {
+                throw new RuntimeException("Barang tidak dapat dihapus karena sedang ada permintaan yang menunggu");
+            }
+            
+            // Proceed with delete
             PreparedStatement stmt = conn.prepareStatement("DELETE FROM barang WHERE id=?");
             stmt.setInt(1, id);
-            stmt.executeUpdate();
+            int affected = stmt.executeUpdate();
+            
+            if (affected == 0) {
+                throw new RuntimeException("Tidak ada barang yang terhapus");
+            }
+            
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error database: " + e.getMessage(), e);
         }
     }
 }

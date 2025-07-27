@@ -4,6 +4,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
@@ -19,10 +20,13 @@ import com.mycompany.peminjamanbarang.model.PermintaanModel;
 import com.mycompany.peminjamanbarang.dao.PermintaanDAO;
 import com.mycompany.peminjamanbarang.dao.BarangDAO;
 import com.mycompany.peminjamanbarang.util.DBUtil;
+import com.mycompany.peminjamanbarang.model.Peminjaman;
+import com.mycompany.peminjamanbarang.service.PeminjamanService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
+import javafx.scene.control.TextInputDialog;
 
 
 public class MahasiswaDashboardController {
@@ -75,8 +79,7 @@ public class MahasiswaDashboardController {
         menuBox.setAlignment(Pos.TOP_LEFT);
         menuBox.setPadding(new Insets(20, 0, 0, 0));
 
-        String[] menuItems = {"Dashboard", "Daftar Barang", "Pengajuan", "Riwayat"};
-        String[] iconPaths = {"/img/dashboard.png", "/img/databarang.png", "/img/permintaan.png", "/img/riwayat.png"};
+        String[] menuItems = {"Dashboard", "Daftar Barang", "Pengajuan", "Pengembalian", "Riwayat"};
 
         StackPane contentArea = new StackPane();
         contentArea.setPadding(new Insets(20));
@@ -84,10 +87,9 @@ public class MahasiswaDashboardController {
         for (int i = 0; i < menuItems.length; i++) {
             HBox menu = new HBox(10);
             menu.setAlignment(Pos.CENTER_LEFT);
-            ImageView icon = new ImageView(new Image(getClass().getResourceAsStream(iconPaths[i]), 18, 18, true, true));
             Label label = new Label(menuItems[i]);
             label.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand;");
-            menu.getChildren().addAll(icon, label);
+            menu.getChildren().add(label);
 
             final int idx = i;
             menu.setOnMouseClicked(_ -> {
@@ -184,7 +186,80 @@ public class MahasiswaDashboardController {
                     TableColumn<PermintaanModel, String> tanggalCol = new TableColumn<>("Tanggal Pengajuan");
                     tanggalCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getTanggalPengajuanFormatted()));
 
-                    pengajuanTable.getColumns().addAll(namaCol, barangCol, kodeCol, statusCol, tanggalCol);
+                    // Tambah kolom aksi untuk cancel permintaan
+                    TableColumn<PermintaanModel, Void> aksiCol = new TableColumn<>("Aksi");
+                    aksiCol.setCellFactory(_ -> new TableCell<>() {
+                        private final Button cancelBtn = new Button("Batalkan");
+                        {
+                            cancelBtn.setStyle("-fx-background-color: #f44336; -fx-text-fill: white; -fx-font-size: 12px;");
+                            cancelBtn.setOnAction(_ -> {
+                                PermintaanModel permintaan = getTableView().getItems().get(getIndex());
+                                
+                                // Konfirmasi cancel
+                                Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                                confirmAlert.setTitle("Konfirmasi Batalkan");
+                                confirmAlert.setHeaderText("Batalkan Permintaan");
+                                confirmAlert.setContentText("Apakah Anda yakin ingin membatalkan permintaan untuk barang '" + 
+                                                           permintaan.getNamaBarang() + "'?");
+                                
+                                confirmAlert.showAndWait().ifPresent(response -> {
+                                    if (response == ButtonType.OK) {
+                                        try (Connection conn = DBUtil.getConnection();
+                                             PreparedStatement ps = conn.prepareStatement(
+                                                 "DELETE FROM pengajuan WHERE id = ? AND user_id = ? AND status = 'Menunggu'")) {
+                                            
+                                            ps.setInt(1, permintaan.getId());
+                                            ps.setInt(2, userId);
+                                            int affected = ps.executeUpdate();
+                                            
+                                            if (affected > 0) {
+                                                // Refresh table
+                                                List<PermintaanModel> updatedList = PermintaanDAO.getPermintaanByUserId(userId, "Menunggu");
+                                                getTableView().getItems().setAll(updatedList);
+                                                
+                                                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                                                successAlert.setTitle("Berhasil");
+                                                successAlert.setHeaderText("Permintaan Dibatalkan");
+                                                successAlert.setContentText("Permintaan untuk barang '" + permintaan.getNamaBarang() + "' berhasil dibatalkan.");
+                                                successAlert.showAndWait();
+                                            } else {
+                                                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                                                errorAlert.setTitle("Error");
+                                                errorAlert.setHeaderText("Gagal Membatalkan");
+                                                errorAlert.setContentText("Permintaan tidak dapat dibatalkan. Mungkin sudah diproses admin.");
+                                                errorAlert.showAndWait();
+                                            }
+                                            
+                                        } catch (SQLException e) {
+                                            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                                            errorAlert.setTitle("Error");
+                                            errorAlert.setHeaderText("Error Database");
+                                            errorAlert.setContentText("Terjadi kesalahan: " + e.getMessage());
+                                            errorAlert.showAndWait();
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                        
+                        @Override
+                        protected void updateItem(Void item, boolean empty) {
+                            super.updateItem(item, empty);
+                            if (empty) {
+                                setGraphic(null);
+                            } else {
+                                PermintaanModel permintaan = getTableView().getItems().get(getIndex());
+                                // Hanya tampilkan tombol cancel jika status masih "Menunggu"
+                                if ("Menunggu".equals(permintaan.getStatus())) {
+                                    setGraphic(cancelBtn);
+                                } else {
+                                    setGraphic(null);
+                                }
+                            }
+                        }
+                    });
+
+                    pengajuanTable.getColumns().addAll(namaCol, barangCol, kodeCol, statusCol, tanggalCol, aksiCol);
                     // Filter pengajuan milik user ini berdasarkan user_id
                     List<PermintaanModel> pengajuanList = PermintaanDAO.getPermintaanByUserId(userId, "Menunggu");
                     pengajuanTable.getItems().setAll(pengajuanList);
@@ -194,7 +269,101 @@ public class MahasiswaDashboardController {
                     VBox pengajuanBox = new VBox(10, pengajuanLabel, pengajuanTable);
                     pengajuanBox.setPadding(new Insets(10));
                     contentArea.getChildren().setAll(pengajuanBox);
-                } else if (idx == 3) { // Riwayat
+                } else if (idx == 3) { // Pengembalian
+                    // Tabel peminjaman aktif yang bisa dikembalikan
+                    TableView<Peminjaman> pengembalianTable = new TableView<>();
+                    pengembalianTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+                    pengembalianTable.setPrefHeight(400);
+
+                    TableColumn<Peminjaman, String> namaPeminjamCol = new TableColumn<>("Nama Peminjam");
+                    namaPeminjamCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNamaPeminjam()));
+
+                    TableColumn<Peminjaman, String> namaBarangCol = new TableColumn<>("Nama Barang");
+                    namaBarangCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNamaBarang()));
+
+                    TableColumn<Peminjaman, String> kodeBarangCol = new TableColumn<>("Kode Barang");
+                    kodeBarangCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getKodeBarang()));
+
+                    TableColumn<Peminjaman, String> tanggalPinjamCol = new TableColumn<>("Tanggal Pinjam");
+                    tanggalPinjamCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getTanggalPinjamFormatted()));
+
+                    TableColumn<Peminjaman, String> statusCol = new TableColumn<>("Status");
+                    statusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getStatus()));
+
+                    TableColumn<Peminjaman, String> durasiCol = new TableColumn<>("Durasi (Hari)");
+                    durasiCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(String.valueOf(data.getValue().getDurasiPeminjamanHari())));
+
+                    // Kolom aksi untuk pengembalian
+                    TableColumn<Peminjaman, Void> aksiCol = new TableColumn<>("Aksi");
+                    aksiCol.setCellFactory(_ -> new TableCell<>() {
+                        private final Button kembalikanBtn = new Button("Kembalikan");
+                        {
+                            kembalikanBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 12px;");
+                            kembalikanBtn.setOnAction(_ -> {
+                                Peminjaman peminjaman = getTableView().getItems().get(getIndex());
+                                
+                                // Dialog untuk input catatan pengembalian
+                                TextInputDialog dialog = new TextInputDialog();
+                                dialog.setTitle("Pengembalian Barang");
+                                dialog.setHeaderText("Kembalikan Barang: " + peminjaman.getNamaBarang());
+                                dialog.setContentText("Catatan (opsional):");
+                                
+                                dialog.showAndWait().ifPresent(catatan -> {
+                                    // Gunakan service untuk business logic
+                                    PeminjamanService peminjamanService = new PeminjamanService();
+                                    try {
+                                        peminjamanService.kembalikanBarang(peminjaman.getId(), catatan);
+
+                                        // Refresh table
+                                        List<Peminjaman> updatedList = peminjamanService.getActivePeminjamanByUserId(userId);
+                                        getTableView().getItems().setAll(updatedList);
+
+                                        Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                                        successAlert.setTitle("Berhasil");
+                                        successAlert.setHeaderText("Barang Dikembalikan");
+                                        successAlert.setContentText("Barang '" + peminjaman.getNamaBarang() + "' berhasil dikembalikan.\nTerima kasih!");
+                                        successAlert.showAndWait();
+                                    } catch (Exception e) {
+                                        Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                                        errorAlert.setTitle("Error");
+                                        errorAlert.setHeaderText("Gagal Mengembalikan");
+                                        errorAlert.setContentText("Terjadi kesalahan: " + e.getMessage());
+                                        errorAlert.showAndWait();
+                                    }
+                                });
+                            });
+                        }
+                        
+                        @Override
+                        protected void updateItem(Void item, boolean empty) {
+                            super.updateItem(item, empty);
+                            if (empty) {
+                                setGraphic(null);
+                            } else {
+                                Peminjaman peminjaman = getTableView().getItems().get(getIndex());
+                                // Hanya tampilkan tombol kembalikan jika status "Dipinjam"
+                                if (peminjaman.isDipinjam()) {
+                                    setGraphic(kembalikanBtn);
+                                } else {
+                                    setGraphic(null);
+                                }
+                            }
+                        }
+                    });
+
+                    pengembalianTable.getColumns().addAll(namaPeminjamCol, namaBarangCol, kodeBarangCol, tanggalPinjamCol, statusCol, durasiCol, aksiCol);
+                    
+                    // Load data peminjaman aktif user ini
+                    PeminjamanService peminjamanService = new PeminjamanService();
+                    List<Peminjaman> activePeminjaman = peminjamanService.getActivePeminjamanByUserId(userId);
+                    pengembalianTable.getItems().setAll(activePeminjaman);
+
+                    Label pengembalianLabel = new Label("Pengembalian Barang");
+                    pengembalianLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+                    VBox pengembalianBox = new VBox(10, pengembalianLabel, pengembalianTable);
+                    pengembalianBox.setPadding(new Insets(10));
+                    contentArea.getChildren().setAll(pengembalianBox);
+                } else if (idx == 4) { // Riwayat
                     // Tabel riwayat pengajuan yang sudah diacc/ditolak (ambil dari database)
                     TableView<PermintaanModel> riwayatTable = new TableView<>();
                     riwayatTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
