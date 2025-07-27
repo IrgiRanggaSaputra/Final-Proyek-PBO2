@@ -692,6 +692,7 @@ INSERT INTO barang (nama, kode, kondisi) VALUES
 └─────────────────┘
 ```
 <li>Github: <a href="https://github.com/IrgiRanggaSaputra/Final-Proyek-PBO2">Repository</a></li>
+<li>Youtube: <a href="https://youtu.be/eibWyXAlFIo?si=zs0cM4_Chd_lty-E">Repository</a></li>
 
 
 <p align="center">
